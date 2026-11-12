@@ -1,0 +1,46 @@
+name: Agency feed (UAE recruitment agencies)
+on:
+  schedule:
+    # 03:15 UTC = 07:15 Dubai
+    - cron: "15 3 * * *"
+  workflow_dispatch:
+permissions:
+  contents: write
+concurrency:
+  group: agency-feed
+  cancel-in-progress: false
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+          cache: pip
+      - name: Install dependencies
+        run: pip install -r requirements.txt
+      - name: Scan agency job pages
+        env:
+          MAX_MINUTES: "40"
+          DISCOVERY_PER_RUN: "50"
+          SCAN_PER_RUN: "50"
+          WORKERS: "8"
+          FEED_DAYS: "21"
+          REDISCOVER_ERROR_DAYS: "1"
+        run: python scanner/scan.py
+      - name: Commit feed and state
+        run: |
+          git config user.name "agency-feed-bot"
+          git config user.email "agency-feed-bot@users.noreply.github.com"
+          git add career_jobs.json state/
+          if git diff --cached --quiet; then
+            echo "Nothing changed"
+          else
+            git commit -m "Agency feed $(date -u +%Y-%m-%d)"
+            for i in 1 2 3; do
+              git pull --rebase --autostash && git push && break
+              sleep 10
+            done
+          fi
