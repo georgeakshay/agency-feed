@@ -3,6 +3,7 @@ on:
   schedule:
     # 03:15 UTC = 07:15 Dubai
     - cron: "15 3 * * *"
+    - cron: "20 6 * * *"  # backup run 10:20 Dubai
   workflow_dispatch:
 permissions:
   contents: write
